@@ -134,6 +134,18 @@ export const profile = {
     },
     {
       type: "Recognition",
+      title: "NAU Cup Championship",
+      meta: "Badminton / Nanjing Audit University",
+      href: "",
+    },
+    {
+      type: "Recognition",
+      title: "Silver finish, Valeo Badminton Game",
+      meta: "Badminton / Team result",
+      href: "",
+    },
+    {
+      type: "Recognition",
       title: "National Second Prize, BIM Graduation Design Innovation Competition",
       meta: "2025",
       href: "",
@@ -153,41 +165,86 @@ export const profile = {
   ],
   habits: [
     {
-      time: "06:30",
-      title: "Read before the noise",
-      detail: "A few pages each morning keep curiosity ahead of the day's demands.",
+      id: "badminton",
+      index: "01",
+      label: "On court",
+      name: "Badminton",
+      title: "I reset through movement.",
+      detail:
+        "I play badminton to step away from the screen, stay present, and return to work with a clearer mind.",
+      note:
+        "A fast exchange asks for the same things I value in good work: attention, timing, and a willingness to adjust.",
+      media: [
+        {
+          src: "/images/badminton-nau-cup.jpg",
+          alt: "CHEN, Liyuan holding the NAU Cup trophy after the championship",
+          caption: "NAU Cup championship — the first-place finish at Nanjing Audit University.",
+          width: 1800,
+          height: 2400,
+          featured: false,
+        },
+        {
+          src: "/images/badminton-valeo-silver.jpg",
+          alt: "Valeo badminton team with medals and trophy after winning silver",
+          caption: "Valeo Badminton Game — our team won silver.",
+          width: 1800,
+          height: 1010,
+          featured: false,
+        },
+        {
+          src: "/images/badminton-nau-cup-certificate.jpg",
+          alt: "NAU Cup championship certificate awarded to CHEN, Liyuan for first place in badminton doubles",
+          caption:
+            "NAU Cup championship certificate — first place in the badminton doubles friendship match.",
+          width: 2409,
+          height: 1740,
+          featured: true,
+        },
+      ],
     },
     {
-      time: "09:00",
-      title: "Protect deep work",
-      detail: "Phone away, one clear question, and enough time to follow the thought.",
+      id: "photography",
+      index: "02",
+      label: "Through the lens",
+      name: "Photography",
+      title: "I notice before I capture.",
+      detail:
+        "Photography slows me down and helps me pay attention to light, texture, and details that are easy to miss.",
+      note:
+        "Looking closely changes the pace of a day; the ordinary becomes a collection of small decisions worth remembering.",
+      media: [],
     },
     {
-      time: "17:30",
-      title: "Walk without input",
-      detail: "The best connections often arrive when there is nothing left to consume.",
-    },
-    {
-      time: "Sunday",
-      title: "Reflect and reset",
-      detail: "A weekly review turns experience into a better way of working.",
+      id: "travelling",
+      index: "03",
+      label: "Moving through places",
+      name: "Travelling",
+      title: "I learn by changing perspective.",
+      detail:
+        "Travelling gives me room to observe unfamiliar places, listen closely, and bring new perspectives back to everyday work.",
+      note:
+        "A change of context makes assumptions visible, and every unfamiliar route leaves me more open to what comes next.",
+      media: [],
     },
   ],
   achievements: [
     {
       number: "01",
-      title: "Ideas into outcomes",
-      detail: "Taking an early question all the way to a finished experience people can use.",
+      title: "NAU Cup championship",
+      detail:
+        "Won the NAU Cup championship, the highest award at Nanjing Audit University.",
     },
     {
       number: "02",
-      title: "Clarity in complexity",
-      detail: "Finding the simple thread in ambiguous work and helping others move with confidence.",
+      title: "The NAU Cup, in hand",
+      detail:
+        "Held the NAU Cup trophy after the championship — the same win, made tangible.",
     },
     {
       number: "03",
-      title: "Knowledge shared forward",
-      detail: "Documenting the lessons, mistakes, and methods that make the next project better.",
+      title: "Silver at Valeo",
+      detail:
+        "Our team won silver at the Valeo badminton game.",
     },
   ],
   email: "",

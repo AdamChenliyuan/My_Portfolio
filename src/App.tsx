@@ -1,5 +1,7 @@
 import {
   type MouseEvent,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -9,14 +11,18 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
+  Camera,
+  MapPinned,
   Menu,
   Pause,
   Play,
   Plus,
   Share2,
+  Zap,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import TravelJournal, { type TravelViewState } from "@/components/travel/TravelJournal"
 import {
   Sheet,
   SheetContent,
@@ -26,6 +32,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { profile } from "@/data/profile"
+import { parseTravelRoute } from "@/data/travel"
 import { useJourneyProgress } from "@/hooks/use-journey-progress"
 import { cn } from "@/lib/utils"
 
@@ -42,7 +49,18 @@ const navItems = [
 
 const sectionIds = navItems.map((item) => item.id)
 
-function App() {
+const habitIcons = {
+  badminton: Zap,
+  photography: Camera,
+  travelling: MapPinned,
+} as const
+
+const CityPage = lazy(() => import("@/pages/CityPage"))
+
+function Portfolio({ travelView, onTravelViewChange }: {
+  travelView: TravelViewState
+  onTravelViewChange: (view: TravelViewState) => void
+}) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const playbackPreferenceRef = useRef(true)
   const hasPlaybackPreferenceRef = useRef(false)
@@ -132,7 +150,7 @@ function App() {
 
     event.preventDefault()
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    const heading = target.querySelector<HTMLElement>("h1, h2")
+    const heading = target.querySelector<HTMLElement>("h1, h2, h3")
 
     window.history.pushState(null, "", href)
     target.scrollIntoView({
@@ -450,11 +468,13 @@ function App() {
                   </div>
                 ))}
               </dl>
+            </article>
 
-              <section className="mt-16" aria-labelledby="about-experience-title">
+            <div className="mt-6 min-w-0 lg:col-span-2 lg:col-start-2 lg:mt-16">
+              <section aria-labelledby="about-experience-title">
                 <h3
                   id="about-experience-title"
-                  className="text-3xl font-normal text-foreground sm:text-4xl"
+                  className="about-resume-heading text-3xl font-normal text-foreground sm:text-4xl"
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                 >
                   Experience
@@ -463,7 +483,7 @@ function App() {
                   {profile.experience.map((experience) => (
                     <li
                       key={`${experience.organization}-${experience.period}`}
-                      className="grid gap-3 border-b border-border py-6 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-6"
+                      className="about-resume-row grid gap-3 border-b border-border py-6 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-6 lg:grid-cols-[10rem_minmax(0,42rem)] lg:justify-end lg:gap-x-10 lg:gap-y-3"
                     >
                       <span className="text-sm tabular-nums text-muted-foreground">
                         {experience.period}
@@ -487,7 +507,7 @@ function App() {
               <section className="mt-16" aria-labelledby="about-education-title">
                 <h3
                   id="about-education-title"
-                  className="text-3xl font-normal text-foreground sm:text-4xl"
+                  className="about-resume-heading text-3xl font-normal text-foreground sm:text-4xl"
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                 >
                   Education
@@ -496,7 +516,7 @@ function App() {
                   {profile.education.map((education) => (
                     <li
                       key={`${education.institution}-${education.period}`}
-                      className="grid gap-3 border-b border-border py-6 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-6"
+                      className="about-resume-row grid gap-3 border-b border-border py-6 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-6 lg:grid-cols-[10rem_minmax(0,42rem)] lg:justify-end lg:gap-x-10 lg:gap-y-3"
                     >
                       <span className="text-sm tabular-nums text-muted-foreground">
                         {education.period}
@@ -520,7 +540,7 @@ function App() {
               <section className="mt-16" aria-labelledby="about-projects-title">
                 <h3
                   id="about-projects-title"
-                  className="text-3xl font-normal text-foreground sm:text-4xl"
+                  className="about-resume-heading text-3xl font-normal text-foreground sm:text-4xl"
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                 >
                   Selected projects
@@ -529,7 +549,7 @@ function App() {
                   {profile.projects.map((project) => (
                     <li
                       key={`${project.title}-${project.period}`}
-                      className="grid gap-3 border-b border-border py-6 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-6"
+                      className="about-resume-row grid gap-3 border-b border-border py-6 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-6 lg:grid-cols-[10rem_minmax(0,42rem)] lg:justify-end lg:gap-x-10 lg:gap-y-3"
                     >
                       <span className="text-sm tabular-nums text-muted-foreground">
                         {project.period}
@@ -551,12 +571,12 @@ function App() {
               <section className="mt-16" aria-labelledby="about-record-title">
                 <h3
                   id="about-record-title"
-                  className="text-3xl font-normal text-foreground sm:text-4xl"
+                  className="about-resume-heading text-3xl font-normal text-foreground sm:text-4xl"
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                 >
                   Research & recognition
                 </h3>
-                <ul className="mt-6 border-t border-border">
+                <ul className="about-resume-content mt-6 border-t border-border">
                   {profile.record.map((item) => (
                     <li key={`${item.type}-${item.title}`} className="border-b border-border py-6">
                       <p className="text-sm font-medium text-muted-foreground">
@@ -584,7 +604,7 @@ function App() {
                   ))}
                 </ul>
               </section>
-            </article>
+            </div>
           </div>
         </section>
 
@@ -598,37 +618,159 @@ function App() {
               <p className="text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 02 / Habits
               </p>
-              <h2
-                id="habits-title"
-                className="text-4xl font-normal leading-none text-foreground sm:text-5xl"
-                style={{ fontFamily: "'Instrument Serif', serif" }}
-              >
-                The rituals behind the work.
-              </h2>
+              <div>
+                <h2
+                  id="habits-title"
+                  className="text-4xl font-normal leading-none text-foreground sm:text-5xl"
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                >
+                  What keeps me curious.
+                </h2>
+                <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                  Three interests I return to outside the work: movement, attention, and a change of place.
+                </p>
+              </div>
             </div>
 
-            <div className="mt-16 border-t border-border md:ml-[calc(27.27%+2.5rem)]">
+            <nav
+              aria-label="Habit pages"
+              className="mt-14 grid border-y border-border sm:grid-cols-3 sm:divide-x sm:divide-border md:ml-[calc(27.27%+2.5rem)]"
+            >
               {profile.habits.map((habit) => (
-                <details
+                <a
                   key={habit.title}
-                  className="disclosure group border-b border-border"
+                  href={`#habit-${habit.id}`}
+                  onClick={handleAnchorClick}
+                  className="habit-index-link group flex min-h-28 items-center justify-between gap-5 py-5 text-foreground transition-colors hover:bg-foreground/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground sm:px-6 md:min-h-36 md:py-6"
                 >
-                  <summary className="disclosure-summary grid min-h-20 cursor-pointer list-none grid-cols-[4rem_1fr_2.75rem] items-center gap-4 py-5 sm:grid-cols-[7rem_1fr_2.75rem] md:gap-8">
-                    <span className="text-sm tabular-nums text-muted-foreground">
-                      {habit.time}
+                  <span>
+                    <span className="block text-sm tabular-nums text-muted-foreground">
+                      {habit.index} / {habit.label}
                     </span>
-                    <h3 className="text-lg font-medium text-foreground">{habit.title}</h3>
-                    <span className="disclosure-icon" aria-hidden="true">
-                      <Plus className="transition-transform duration-200 group-open:rotate-45" />
+                    <span
+                      className="mt-2 block text-2xl font-normal text-foreground sm:text-3xl"
+                      style={{ fontFamily: "'Instrument Serif', serif" }}
+                    >
+                      {habit.name}
                     </span>
-                  </summary>
-                  <div className="disclosure-copy pb-8 pr-14 sm:pl-[7rem] md:pl-[calc(7rem+2rem)]">
-                    <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
-                      {habit.detail}
-                    </p>
-                  </div>
-                </details>
+                  </span>
+                  <ArrowUpRight
+                    className="shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
+                    aria-hidden="true"
+                  />
+                </a>
               ))}
+            </nav>
+
+            <div className="mt-12 border-t border-border md:ml-[calc(27.27%+2.5rem)]">
+              {profile.habits.map((habit) => {
+                const HabitIcon = habitIcons[habit.id]
+                const habitTitleId = `habit-${habit.id}-title`
+
+                return (
+                  <article
+                    id={`habit-${habit.id}`}
+                    key={habit.id}
+                    aria-labelledby={habitTitleId}
+                    className="habit-page scroll-mt-12 border-b border-border py-12 sm:py-16 md:scroll-mt-16"
+                  >
+                    <div className="grid gap-8 lg:grid-cols-[0.75fr_2fr] lg:gap-20">
+                      <div className="flex items-start justify-between lg:block">
+                        <div className="habit-glyph" aria-hidden="true">
+                          <HabitIcon />
+                        </div>
+                        <p className="mt-4 text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground lg:mt-6">
+                          {habit.index} / {habit.label}
+                        </p>
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3
+                          id={habitTitleId}
+                          tabIndex={-1}
+                          className="max-w-3xl text-5xl font-normal leading-[0.95] text-foreground outline-none sm:text-6xl md:text-7xl"
+                          style={{ fontFamily: "'Instrument Serif', serif" }}
+                        >
+                          {habit.name}
+                        </h3>
+                        <p className="mt-6 text-2xl leading-tight text-foreground sm:text-3xl">
+                          {habit.title}
+                        </p>
+                        <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                          {habit.detail}
+                        </p>
+
+                        {habit.media.length > 0 && (
+                          <div
+                            className="habit-media mt-12 grid gap-6 md:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] md:items-end"
+                            aria-label={`${habit.name} photographs and certificate`}
+                          >
+                            {habit.media.map((media, mediaIndex) => (
+                              <figure
+                                key={media.src}
+                                className={cn(
+                                  "group",
+                                  mediaIndex === 1 && "md:mb-10",
+                                  media.featured && "md:col-span-2",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "overflow-hidden border border-border bg-foreground/[0.03]",
+                                    media.featured
+                                      ? "aspect-[138/100]"
+                                      : mediaIndex === 0
+                                        ? "aspect-[3/4]"
+                                        : "aspect-[16/9]",
+                                  )}
+                                >
+                                  <img
+                                    src={media.src}
+                                    alt={media.alt}
+                                    width={media.width}
+                                    height={media.height}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className={cn(
+                                      "h-full w-full transition-transform duration-700 ease-out",
+                                      media.featured
+                                        ? "object-contain p-2 sm:p-4"
+                                        : "object-cover group-hover:scale-[1.02]",
+                                    )}
+                                  />
+                                </div>
+                                <figcaption className="mt-3 flex gap-4 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
+                                  <span className="shrink-0 text-xs tabular-nums text-foreground/60">
+                                    {String(mediaIndex + 1).padStart(2, "0")}
+                                  </span>
+                                  <span>{media.caption}</span>
+                                </figcaption>
+                              </figure>
+                            ))}
+                          </div>
+                        )}
+
+                        <details className="disclosure group mt-10 max-w-2xl border-t border-border">
+                          <summary className="disclosure-summary grid min-h-16 cursor-pointer list-none grid-cols-[1fr_2.75rem] items-center gap-4 py-3 text-sm font-medium text-foreground">
+                            <span>Open field note</span>
+                            <span className="disclosure-icon" aria-hidden="true">
+                              <Plus className="transition-transform duration-200 group-open:rotate-45" />
+                            </span>
+                          </summary>
+                          <div className="disclosure-copy pb-4 pr-14">
+                            <p className="text-base leading-relaxed text-muted-foreground">
+                              {habit.note}
+                            </p>
+                          </div>
+                        </details>
+                      </div>
+                    </div>
+                    {habit.id === "travelling" && (
+                      <TravelJournal view={travelView} onViewChange={onTravelViewChange} />
+                    )}
+                  </article>
+                )
+              })}
             </div>
           </div>
         </section>
@@ -758,6 +900,61 @@ function App() {
       </main>
     </>
   )
+}
+
+function App() {
+  const [route, setRoute] = useState(() => parseTravelRoute(window.location.hash))
+  const routeRef = useRef(route)
+  const portfolioScroll = useRef<number | null>(null)
+  const [travelView, setTravelView] = useState<TravelViewState>(() => ({
+    country: "all",
+    query: "",
+    mode: "destinations",
+  }))
+
+  useEffect(() => {
+    const syncRoute = () => {
+      const next = parseTravelRoute(window.location.hash)
+      if (!routeRef.current && next) portfolioScroll.current = window.scrollY
+      routeRef.current = next
+      setRoute((current) => current?.slug === next?.slug && current?.kind === next?.kind ? current : next)
+    }
+    window.addEventListener("hashchange", syncRoute)
+    window.addEventListener("popstate", syncRoute)
+    return () => {
+      window.removeEventListener("hashchange", syncRoute)
+      window.removeEventListener("popstate", syncRoute)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (route) return
+    const frame = window.requestAnimationFrame(() => {
+      const id = window.location.hash.slice(1)
+      const target = document.getElementById(id)
+      if (id === "habit-travelling" && portfolioScroll.current !== null) {
+        window.scrollTo({ top: portfolioScroll.current, behavior: "instant" })
+      } else if (target) {
+        target.scrollIntoView({ behavior: "instant", block: "start" })
+      }
+      const heading = target?.querySelector<HTMLElement>("h1, h2, h3")
+      if (heading) {
+        heading.tabIndex = -1
+        heading.focus({ preventScroll: true })
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [route])
+
+  if (route) {
+    return (
+      <Suspense fallback={<main className="mx-auto min-h-svh max-w-7xl px-6 py-36 text-muted-foreground" aria-busy="true"><p role="status">Opening the city chapter…</p></main>}>
+        <CityPage key={`${route.kind}/${route.slug}`} route={route} />
+      </Suspense>
+    )
+  }
+
+  return <Portfolio travelView={travelView} onTravelViewChange={setTravelView} />
 }
 
 export default App
