@@ -22,6 +22,748 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import type { TravelViewState } from "@/components/travel/TravelJournal"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { profile } from "@/data/profile"
+import { habitHref, parseAppRoute, type AppRoute } from "@/data/routes"
+import { useJourneyProgress } from "@/hooks/use-journey-progress"
+import { cn } from "@/lib/utils"
+
+const VIDEO_URL =
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4"
+
+const navItems = [
+  { id: "home", label: "Home", href: "#home" },
+  { id: "about", label: "About", href: "#/about" },
+  { id: "habits", label: "Habits", href: "#habits" },
+  { id: "achievements", label: "Achievements", href: "#achievements" },
+  { id: "contact", label: "Share", href: "#contact" },
+] as const
+
+const sectionIds = navItems.map((item) => item.id)
+
+const habitIcons = {
+  badminton: Zap,
+  photography: Camera,
+  travelling: MapPinned,
+} as const
+
+const CityPage = lazy(() => import("@/pages/CityPage"))
+const HabitPage = lazy(() => import("@/pages/HabitPage"))
+const AboutPage = lazy(() => import("@/pages/AboutPage"))
+
+function Portfolio() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const playbackPreferenceRef = useRef(true)
+  const hasPlaybackPreferenceRef = useRef(false)
+  const shareTimerRef = useRef<number | null>(null)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [videoFailed, setVideoFailed] = useState(false)
+  const [shareStatus, setShareStatus] = useState("")
+  const { activeSection, isScrolled, progress } = useJourneyProgress(sectionIds)
+
+  useEffect(() => {
+    document.title = `${profile.name} | ${profile.role}`
+
+    const video = videoRef.current
+    const hero = document.getElementById("home")
+    if (!video || !hero) return
+
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)")
+    let heroIsVisible = true
+    let storedPreference: string | null = null
+
+    try {
+      storedPreference = window.sessionStorage.getItem("liyuan-video-playback")
+    } catch {
+      storedPreference = null
+    }
+
+    hasPlaybackPreferenceRef.current = storedPreference !== null
+    playbackPreferenceRef.current = storedPreference
+      ? storedPreference === "playing"
+      : !motionPreference.matches
+
+    const applyPlaybackPreference = () => {
+      if (
+        playbackPreferenceRef.current &&
+        heroIsVisible &&
+        !document.hidden &&
+        !videoFailed
+      ) {
+        void video.play().catch(() => setIsVideoPlaying(false))
+      } else {
+        video.pause()
+      }
+    }
+
+    const handleMotionPreference = () => {
+      if (!hasPlaybackPreferenceRef.current) {
+        playbackPreferenceRef.current = !motionPreference.matches
+      }
+      applyPlaybackPreference()
+    }
+
+    const handleVisibility = () => applyPlaybackPreference()
+    const heroObserver = new IntersectionObserver(
+      ([entry]) => {
+        heroIsVisible = entry.isIntersecting
+        applyPlaybackPreference()
+      },
+      { threshold: 0.08 },
+    )
+
+    heroObserver.observe(hero)
+    motionPreference.addEventListener("change", handleMotionPreference)
+    document.addEventListener("visibilitychange", handleVisibility)
+    applyPlaybackPreference()
+
+    return () => {
+      heroObserver.disconnect()
+      motionPreference.removeEventListener("change", handleMotionPreference)
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
+  }, [videoFailed])
+
+  useEffect(
+    () => () => {
+      if (shareTimerRef.current) window.clearTimeout(shareTimerRef.current)
+    },
+    [],
+  )
+
+  const handleAnchorClick = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
+    const href = event.currentTarget.getAttribute("href")
+    if (!href?.startsWith("#")) return
+
+    const target = document.getElementById(href.slice(1))
+    if (!target) return
+
+    event.preventDefault()
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const heading = target.querySelector<HTMLElement>("h1, h2, h3")
+
+    window.history.pushState(null, "", href)
+    target.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    })
+
+    if (heading) {
+      heading.tabIndex = -1
+      window.requestAnimationFrame(() => heading.focus({ preventScroll: true }))
+    }
+  }, [])
+
+  const toggleVideoPlayback = () => {
+    const video = videoRef.current
+    if (!video || videoFailed) return
+
+    const shouldPlay = video.paused
+    playbackPreferenceRef.current = shouldPlay
+    hasPlaybackPreferenceRef.current = true
+
+    try {
+      window.sessionStorage.setItem(
+        "liyuan-video-playback",
+        shouldPlay ? "playing" : "paused",
+      )
+    } catch {
+      // Playback still works when session storage is unavailable.
+    }
+
+    if (shouldPlay) {
+      void video.play().catch(() => setIsVideoPlaying(false))
+    } else {
+      video.pause()
+    }
+  }
+
+  const shareProfile = async () => {
+    const shareData = {
+      title: `${profile.name} | ${profile.role}`,
+      text: `Explore the personal journey of ${profile.name}.`,
+      url: window.location.href.split("#")[0],
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        setShareStatus("Profile shared.")
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareData.url)
+        setShareStatus("Profile link copied.")
+      } else {
+        throw new Error("Clipboard unavailable")
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return
+      setShareStatus("Sharing is unavailable. Copy the URL from your browser.")
+    }
+
+    if (shareTimerRef.current) window.clearTimeout(shareTimerRef.current)
+    shareTimerRef.current = window.setTimeout(() => setShareStatus(""), 4000)
+  }
+
+  return (
+    <>
+      <a className="skip-link" href="#about">
+        Skip to profile
+      </a>
+
+      <div
+        className="reading-progress"
+        role="progressbar"
+        aria-label="Page reading progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
+      >
+        <span style={{ transform: `scaleX(${progress})` }} />
+      </div>
+
+      <header className="site-header fixed inset-x-0 top-0 z-40 px-3 sm:px-6">
+        <nav
+          aria-label="Primary navigation"
+          className={cn(
+            "nav-glass pointer-events-auto mx-auto flex max-w-7xl flex-row items-center justify-between gap-4 rounded-full px-5 py-3 sm:px-8 sm:py-4",
+            isScrolled && "nav-glass--scrolled",
+          )}
+        >
+          <a
+            href="#home"
+            aria-label={profile.name}
+            onClick={handleAnchorClick}
+            className="flex min-h-11 shrink-0 items-center text-xl tracking-tight text-foreground outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-foreground min-[380px]:text-2xl sm:text-3xl"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            <span className="min-[380px]:hidden">{profile.compactName}</span>
+            <span className="hidden min-[380px]:inline">{profile.name}</span>
+            <sup className="ml-0.5 text-xs">&reg;</sup>
+          </a>
+
+          <div className="hidden items-center gap-5 md:flex lg:gap-7">
+            {navItems.map((item) => {
+              const isActive = activeSection === item.id
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onClick={handleAnchorClick}
+                  aria-current={isActive ? "location" : undefined}
+                  className={cn(
+                    "relative flex min-h-11 items-center px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground",
+                    isActive && "text-foreground",
+                  )}
+                >
+                  {item.label}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "nav-active-marker",
+                      isActive && "nav-active-marker--visible",
+                    )}
+                  />
+                </a>
+              )
+            })}
+          </div>
+
+          <Button
+            asChild
+            variant="glass"
+            className="liquid-glass hidden h-11 shrink-0 cursor-pointer rounded-full px-6 text-sm text-foreground active:scale-[0.98] md:inline-flex"
+          >
+            <a href="#about" onClick={handleAnchorClick}>
+              <span className="relative z-[1]">Begin Journey</span>
+              <ArrowDown className="relative z-[1]" aria-hidden="true" />
+            </a>
+          </Button>
+
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="glass"
+                size="icon"
+                className="liquid-glass shrink-0 cursor-pointer rounded-full text-foreground active:scale-[0.96] md:hidden"
+                aria-label="Open journey navigation"
+              >
+                <Menu className="relative z-[1]" aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader className="pr-14">
+                <SheetTitle>{profile.name}</SheetTitle>
+                <SheetDescription>{profile.role}</SheetDescription>
+              </SheetHeader>
+
+              <nav className="mt-14 border-t border-border" aria-label="Mobile navigation">
+                {navItems.map((item, index) => {
+                  const isActive = activeSection === item.id
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.href}
+                      onClick={(event) => {
+                        setIsMenuOpen(false)
+                        handleAnchorClick(event)
+                      }}
+                      aria-current={isActive ? "location" : undefined}
+                      className={cn(
+                        "sheet-nav-link group flex min-h-16 items-center gap-5 border-b border-border text-muted-foreground",
+                        isActive && "text-foreground",
+                      )}
+                    >
+                      <span className="w-8 text-sm tabular-nums text-muted-foreground">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <span className="flex-1 text-xl">{item.label}</span>
+                      <ArrowUpRight
+                        className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                        aria-hidden="true"
+                      />
+                    </a>
+                  )
+                })}
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </nav>
+      </header>
+
+      <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
+        <section
+          id="home"
+          aria-labelledby="hero-title"
+          className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-background"
+        >
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            tabIndex={-1}
+            onPlay={() => setIsVideoPlaying(true)}
+            onPause={() => setIsVideoPlaying(false)}
+            onError={() => setVideoFailed(true)}
+            className="video-cinematic absolute inset-0 z-0 h-full w-full object-cover"
+          >
+            <source src={VIDEO_URL} type="video/mp4" />
+            Your browser does not support background video.
+          </video>
+
+          <div
+            className="hero-nav-spacer h-[88px] shrink-0 sm:h-[108px]"
+            aria-hidden="true"
+          />
+
+          <div className="hero-content relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:py-[90px]">
+            <h1
+              id="hero-title"
+              className="hero-title animate-fade-rise max-w-7xl text-5xl font-normal leading-[0.95] tracking-[-2.46px] text-foreground sm:text-7xl md:text-8xl"
+              style={{ fontFamily: "'Instrument Serif', serif" }}
+            >
+              I make{" "}
+              <em className="not-italic text-muted-foreground">thoughtful things</em>{" "}
+              for a <em className="not-italic text-muted-foreground">noisy world.</em>
+            </h1>
+            <p className="hero-copy animate-fade-rise-delay mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mt-8 sm:text-lg">
+              {profile.introduction}
+            </p>
+            <Button
+              asChild
+              variant="glass"
+              className="hero-cta liquid-glass animate-fade-rise-delay-2 mt-8 h-auto min-h-14 cursor-pointer rounded-full px-14 py-4 text-base text-foreground active:scale-[0.98] sm:mt-12"
+            >
+              <a href="#about" onClick={handleAnchorClick}>
+                <span className="relative z-[1]">Begin Journey</span>
+                <ArrowDown className="relative z-[1]" aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+
+          {!videoFailed && (
+            <Button
+              type="button"
+              variant="glass"
+              onClick={toggleVideoPlayback}
+              aria-pressed={isVideoPlaying}
+              aria-label={isVideoPlaying ? "Pause background film" : "Play background film"}
+              className="liquid-glass absolute bottom-4 right-4 z-20 h-11 min-w-11 cursor-pointer rounded-full px-3 text-foreground active:scale-[0.96] sm:bottom-6 sm:right-6 sm:px-4"
+            >
+              {isVideoPlaying ? (
+                <Pause className="relative z-[1]" aria-hidden="true" />
+              ) : (
+                <Play className="relative z-[1]" aria-hidden="true" />
+              )}
+              <span className="relative z-[1] hidden sm:inline">
+                {isVideoPlaying ? "Pause film" : "Play film"}
+              </span>
+            </Button>
+          )}
+        </section>
+
+        <section
+          id="about"
+          aria-labelledby="about-title"
+          className="scroll-mt-28 border-t border-border bg-background"
+        >
+          <div className="mx-auto grid max-w-7xl gap-10 px-6 py-24 md:px-8 md:py-32 lg:grid-cols-[minmax(7rem,0.55fr)_minmax(16rem,0.9fr)_minmax(0,1.55fr)] lg:items-start lg:gap-x-12">
+            <p className="text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              01 / About
+            </p>
+
+            <figure className="w-full max-w-lg overflow-hidden rounded-[14px] border border-foreground/10 bg-muted lg:sticky lg:top-32 lg:max-w-none">
+              <img
+                src={profile.portrait.src}
+                alt={profile.portrait.alt}
+                width={profile.portrait.width}
+                height={profile.portrait.height}
+                loading="lazy"
+                decoding="async"
+                className="aspect-[4/5] h-auto w-full object-cover object-top"
+              />
+            </figure>
+
+            <article className="min-w-0">
+              <h2
+                id="about-title"
+                className="max-w-4xl text-4xl font-normal leading-[1.05] text-foreground sm:text-5xl lg:text-6xl"
+                style={{ fontFamily: "'Instrument Serif', serif" }}
+              >
+                I turn complex evidence into clear decisions.{" "}
+                <em className="not-italic text-muted-foreground">
+                  Across engineering, finance, and business.
+                </em>
+              </h2>
+
+              <p className="mt-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                {profile.about[0]}
+              </p>
+
+              <dl className="mt-10 grid max-w-3xl gap-x-8 gap-y-5 border-y border-border py-6 sm:grid-cols-3">
+                {profile.aboutDetails.slice(0, 3).map((detail) => (
+                  <div
+                    key={detail.label}
+                    className="min-w-0"
+                  >
+                    <dt className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{detail.label}</dt>
+                    <dd className="mt-2 text-sm leading-relaxed text-foreground">
+                      {detail.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-10 flex flex-wrap items-center gap-4 border-t border-border pt-6">
+                <Button asChild variant="glass" className="liquid-glass min-h-12 rounded-full px-6">
+                  <a href="#/about">
+                    <span className="relative z-[1]">Read full profile</span>
+                    <ArrowUpRight className="relative z-[1]" aria-hidden="true" />
+                  </a>
+                </Button>
+                <p className="text-sm text-muted-foreground">Experience, education, projects, and research.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section
+          id="habits"
+          aria-labelledby="habits-title"
+          className="scroll-mt-28 border-t border-border bg-background"
+        >
+          <div className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32">
+            <div className="grid gap-8 md:grid-cols-[0.75fr_2fr] md:gap-20">
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                02 / Habits
+              </p>
+              <div>
+                <h2
+                  id="habits-title"
+                  className="text-4xl font-normal leading-none text-foreground sm:text-5xl"
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                >
+                  What keeps me curious.
+                </h2>
+                <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                  Three interests I return to outside the work: movement, attention, and a change of place.
+                </p>
+              </div>
+            </div>
+
+            <nav
+              aria-label="Habit pages"
+              className="mt-14 border-t border-border md:ml-[calc(27.27%+2.5rem)]"
+            >
+              {profile.habits.map((habit) => {
+                const HabitIcon = habitIcons[habit.id]
+                return (
+                <a
+                  key={habit.title}
+                  href={habitHref(habit.id)}
+                  className="habit-index-link group flex min-h-28 items-center justify-between gap-6 border-b border-border py-6 text-foreground transition-colors hover:bg-foreground/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground sm:min-h-32 sm:py-7"
+                >
+                  <span className="flex min-w-0 items-center gap-5 sm:gap-6">
+                    <span className="habit-glyph shrink-0" aria-hidden="true">
+                      <HabitIcon />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm tabular-nums text-muted-foreground">
+                        {habit.index} / {habit.label}
+                      </span>
+                      <span
+                        className="mt-2 block truncate text-3xl font-normal text-foreground sm:text-4xl"
+                        style={{ fontFamily: "'Instrument Serif', serif" }}
+                      >
+                        {habit.name}
+                      </span>
+                      <span className="mt-2 block max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                        {habit.title}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground transition-colors group-hover:text-foreground">
+                    <span className="hidden sm:inline">Open chapter</span>
+                    <ArrowUpRight className="size-5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
+                  </span>
+                </a>
+                )
+              })}
+            </nav>
+          </div>
+        </section>
+
+        <section
+          id="achievements"
+          aria-labelledby="achievements-title"
+          className="scroll-mt-28 border-t border-border bg-background"
+        >
+          <div className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32">
+            <div className="grid gap-8 md:grid-cols-[0.75fr_2fr] md:gap-20">
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                03 / Achievements
+              </p>
+              <h2
+                id="achievements-title"
+                className="max-w-3xl text-4xl font-normal leading-none text-foreground sm:text-5xl"
+                style={{ fontFamily: "'Instrument Serif', serif" }}
+              >
+                Progress measured in what changed.
+              </h2>
+            </div>
+
+            <div className="mt-16 border-t border-border md:ml-[calc(27.27%+2.5rem)]">
+              {profile.achievements.map((achievement) => (
+                <details
+                  id={`achievement-${achievement.number}`}
+                  key={achievement.number}
+                  className="disclosure group scroll-mt-28 border-b border-border"
+                >
+                  <summary className="disclosure-summary grid min-h-24 cursor-pointer list-none grid-cols-[4rem_1fr_2.75rem] items-center gap-4 py-6 sm:grid-cols-[5rem_1fr_2.75rem] md:gap-8">
+                    <span
+                      className="text-3xl text-muted-foreground transition-colors group-open:text-foreground"
+                      style={{ fontFamily: "'Instrument Serif', serif" }}
+                    >
+                      {achievement.number}
+                    </span>
+                    <h3 className="text-xl font-medium text-foreground">
+                      {achievement.title}
+                    </h3>
+                    <span className="disclosure-icon" aria-hidden="true">
+                      <Plus className="transition-transform duration-200 group-open:rotate-45" />
+                    </span>
+                  </summary>
+                  <div className="disclosure-copy pb-9 pr-14 sm:pl-[5rem] md:pl-[calc(5rem+2rem)]">
+                    <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
+                      {achievement.detail}
+                    </p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="contact"
+          aria-labelledby="contact-title"
+          className="scroll-mt-28 border-t border-border bg-background"
+        >
+          <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-12 px-6 py-24 md:flex-row md:items-end md:px-8 md:py-32">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                04 / Share
+              </p>
+              <h2
+                id="contact-title"
+                className="mt-8 max-w-3xl text-5xl font-normal leading-[0.95] text-foreground sm:text-6xl md:text-7xl"
+                style={{ fontFamily: "'Instrument Serif', serif" }}
+              >
+                If this story resonates,{" "}
+                <em className="not-italic text-muted-foreground">pass it forward.</em>
+              </h2>
+            </div>
+
+            <div className="flex shrink-0 flex-col items-start gap-3 md:items-end">
+              {profile.email.length > 0 && (
+                <Button
+                  asChild
+                  variant="glass"
+                  className="liquid-glass h-auto min-h-12 cursor-pointer rounded-full px-8 py-3 text-base text-foreground active:scale-[0.98]"
+                >
+                  <a href={`mailto:${profile.email}`}>
+                    <span className="relative z-[1]">Say hello</span>
+                    <ArrowUpRight className="relative z-[1]" aria-hidden="true" />
+                  </a>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="glass"
+                onClick={shareProfile}
+                className="liquid-glass h-auto min-h-12 cursor-pointer rounded-full px-8 py-3 text-base text-foreground active:scale-[0.98]"
+              >
+                <span className="relative z-[1]">Share profile</span>
+                <Share2 className="relative z-[1]" aria-hidden="true" />
+              </Button>
+              <p
+                className="min-h-5 max-w-xs text-sm text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                {shareStatus}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <footer className="border-t border-border bg-background">
+          <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-8">
+            <div className="flex flex-col gap-1 sm:flex-row sm:gap-5">
+              <p>{profile.name}</p>
+              <p>Designed with attention.</p>
+            </div>
+            <Button
+              asChild
+              variant="ghost"
+              className="h-11 w-fit cursor-pointer rounded-full px-4 text-muted-foreground hover:text-foreground"
+            >
+              <a href="#home" onClick={handleAnchorClick}>
+                Back to top
+                <ArrowUp aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+        </footer>
+      </main>
+    </>
+  )
+}
+
+function App() {
+  const [route, setRoute] = useState<AppRoute | null>(() => parseAppRoute(window.location.hash))
+  const [travelView, setTravelView] = useState<TravelViewState>({
+    country: "all",
+    query: "",
+    mode: "destinations",
+  })
+  const routeRef = useRef(route)
+  const portfolioScroll = useRef<number | null>(null)
+
+  useEffect(() => {
+    const syncRoute = () => {
+      const next = parseAppRoute(window.location.hash)
+      if (!routeRef.current && next) portfolioScroll.current = window.scrollY
+      routeRef.current = next
+      setRoute((current) =>
+        current?.slug === next?.slug && current?.kind === next?.kind ? current : next,
+      )
+    }
+    window.addEventListener("hashchange", syncRoute)
+    window.addEventListener("popstate", syncRoute)
+    return () => {
+      window.removeEventListener("hashchange", syncRoute)
+      window.removeEventListener("popstate", syncRoute)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (route) return
+    const frame = window.requestAnimationFrame(() => {
+      const id = window.location.hash.slice(1)
+      const target = document.getElementById(id)
+      if (id === "habit-travelling" && portfolioScroll.current !== null) {
+        window.scrollTo({ top: portfolioScroll.current, behavior: "instant" })
+      } else if (target) {
+        target.scrollIntoView({ behavior: "instant", block: "start" })
+      }
+      const heading = target?.querySelector<HTMLElement>("h1, h2, h3")
+      if (heading) {
+        heading.tabIndex = -1
+        heading.focus({ preventScroll: true })
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [route])
+
+  if (route) {
+    return (
+      <Suspense fallback={<main className="mx-auto min-h-svh max-w-7xl px-6 py-36 text-muted-foreground" aria-busy="true"><p role="status">Opening the chapter…</p></main>}>
+        {route.kind === "habit" ? (
+          <HabitPage
+            key={`habit/${route.slug}`}
+            route={route}
+            travelView={travelView}
+            onTravelViewChange={setTravelView}
+          />
+        ) : route.kind === "about" ? (
+          <AboutPage key="about" />
+        ) : (
+          <CityPage key={`${route.kind}/${route.slug}`} route={route} />
+        )}
+      </Suspense>
+    )
+  }
+
+  return <Portfolio />
+}
+
+export default App
+import {
+  type MouseEvent,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpRight,
+  Camera,
+  MapPinned,
+  Menu,
+  Pause,
+  Play,
+  Plus,
+  Share2,
+  Zap,
+} from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 import TravelJournal, { type TravelViewState } from "@/components/travel/TravelJournal"
 import {
   Sheet,
