@@ -31,7 +31,7 @@ export default function TravelJournal({ view, onViewChange }: TravelJournalProps
     <section className="travel-journal mt-16" aria-labelledby="travel-journal-title">
       <div className="flex flex-wrap items-end justify-between gap-6 border-t border-border pt-8">
         <div>
-          <h4 id="travel-journal-title" className="travel-display text-4xl leading-none sm:text-5xl">Places & perspectives.</h4>
+          <h2 id="travel-journal-title" className="travel-display text-4xl leading-none sm:text-5xl">Places & perspectives.</h2>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
             The places I’ve been, and the stories still taking shape.
           </p>
