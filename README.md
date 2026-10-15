@@ -17,7 +17,7 @@ Create a production build with `pnpm build`.
 
 ## Travel map and city chapters
 
-The Travelling section contains a local SVG world map, country filters, city search, zoom controls, and individual city pages. The map uses public-domain Natural Earth data and needs no API key or map service. City URLs use hash routes, so direct links and refreshes work on static hosting without server rewrite rules.
+The Travelling habit page contains a local SVG world map, country filters, city search, zoom controls, and individual city pages. The map uses public-domain Natural Earth data and needs no API key or map service. City URLs use hash routes, so direct links and refreshes work on static hosting without server rewrite rules.
 
 The confirmed destination list contains the 20 country and region folders Liyuan supplied. Empty folders confirm destinations but do not identify cities, dates, photographs, or personal memories, so the site leaves those fields open rather than inventing them. Hong Kong, Macau, Singapore, and Monaco also function as city/locality chapters.
 
